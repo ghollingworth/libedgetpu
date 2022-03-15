@@ -186,7 +186,9 @@ Status KernelRegisters::Write(uint64 offset, uint64 value) {
   }
 
   ASSIGN_OR_RETURN(auto mmap_register, GetMappedOffset(offset, sizeof(uint64)));
-  *reinterpret_cast<uint64*>(mmap_register) = value;
+  *reinterpret_cast<uint32 *>(mmap_register) = static_cast<uint32>(value);
+  *(reinterpret_cast<uint32 *>(mmap_register) + 1) = static_cast<uint32>(value >> 32);
+
   VLOG(5) << StringPrintf(
       "Write: offset = 0x%016llx, value = 0x%016llx",
       static_cast<unsigned long long>(offset),  // NOLINT(runtime/int)
@@ -196,6 +198,7 @@ Status KernelRegisters::Write(uint64 offset, uint64 value) {
 }
 
 StatusOr<uint64> KernelRegisters::Read(uint64 offset) {
+
   StdMutexLock lock(&mutex_);
   if (fd_ == INVALID_FD_VALUE) {
     return FailedPreconditionError("Device not open.");
@@ -207,7 +210,10 @@ StatusOr<uint64> KernelRegisters::Read(uint64 offset) {
   }
 
   ASSIGN_OR_RETURN(auto mmap_register, GetMappedOffset(offset, sizeof(uint64)));
-  uint64 value = *reinterpret_cast<uint64*>(mmap_register);
+  uint32 l1 = *reinterpret_cast<uint32 *>(mmap_register);
+  uint32 l2 = *(reinterpret_cast<uint32 *>(mmap_register) + 1);
+  uint64 value = static_cast<uint64>(l1) + (static_cast<uint64>(l2) << 32);
+
   VLOG(5) << StringPrintf(
       "Read: offset = 0x%016llx, value: = 0x%016llx",
       static_cast<unsigned long long>(offset),  // NOLINT(runtime/int)
